@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace MediaOpt
@@ -9,6 +10,7 @@ namespace MediaOpt
     internal class Program
     {
         private static readonly ConcurrentQueue<string> Queue = new ConcurrentQueue<string>();
+        private static int _counter;
 
         private static void Main(string[] args)
         {
@@ -26,10 +28,6 @@ namespace MediaOpt
             Console.WriteLine("Processed in: {0}s", totalStopwatch.ElapsedMilliseconds/1000);
         }
 
-        /// <summary>
-        ///     Returns all jpeg files in given directory. Recursive
-        /// </summary>
-        /// <param name="path"></param>
         private static void ProcessDir(string path)
         {
             var files = Directory.EnumerateFiles(path);
@@ -50,24 +48,12 @@ namespace MediaOpt
             var fileStopwatch = new Stopwatch();
             fileStopwatch.Start();
             var target = path.Remove(path.LastIndexOf(".", StringComparison.Ordinal)) + ".webp";
-            RunWebP(path, target);
+            IConverter converter = new WebPConverter();
+            converter.Convert(path, target);
             File.Delete(path);
             fileStopwatch.Stop();
-            Console.WriteLine("Processed: {0} in {1}s", target, fileStopwatch.ElapsedMilliseconds/1000);
-        }
-
-        private static void RunWebP(string source, string target)
-        {
-            var commandline =
-                string.Format(
-                    @"-preset photo -m 6 -q 85 -mt -metadata all -sns 85 ""{0}"" -o ""{1}""", source, target);
-
-            var p = new Process();
-            p.StartInfo.FileName = @"redist\cwebp.exe";
-            p.StartInfo.Arguments = commandline;
-            p.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-            p.Start();
-            p.WaitForExit();
+            Interlocked.Increment(ref _counter);
+            Console.WriteLine("Processed {2}: {0} in {1}s", target, fileStopwatch.ElapsedMilliseconds/1000, _counter);
         }
     }
 }
